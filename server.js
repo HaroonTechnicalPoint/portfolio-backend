@@ -179,7 +179,7 @@ app.post("/api/send-email", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 7000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
