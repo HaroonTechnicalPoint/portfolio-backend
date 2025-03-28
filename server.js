@@ -2,9 +2,12 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
+import fileUpload from "express-fileupload";
 import User from "./model/User.js";
 import nodemailer from "nodemailer";
 import Blog from "./model/Blog.js";
+import authRoutes from "./routes/authRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -12,101 +15,10 @@ connectDB();
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use("/api/auth", authRoutes);
+app.use(fileUpload({ useTempFiles: true }));
 
-//  Register User API
-app.post("/api/register", async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-
-    // Check if User Exists
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User already exists!" });
-    }
-
-    // Create New User
-    const user = await User.create({ name, email, password });
-
-    res.status(201).json({
-      success: true,
-      message: "User registered successfully!",
-      user,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Server Error" });
-  }
-});
-
-//  Login User API
-app.post("/api/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Find User
-    const user = await User.findOne({ email });
-    if (!user || user.password !== password) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid email or password!" });
-    }
-
-    res.json({ success: true, message: "Login successful!", user });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Server Error" });
-  }
-});
-//// change password
-app.put("/api/change-password", async (req, res) => {
-  try {
-    const { email, oldPassword, newPassword } = req.body;
-
-    // ✅ User find karo
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User Not Found" });
-    }
-
-    if (user.password !== oldPassword) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Old Password is Wrong" });
-    }
-
-    user.password = newPassword;
-    await user.save();
-
-    res.json({ success: true, message: "Password Changed Successfully" });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
-  }
-});
-
-app.delete("/api/user/:id", async (req, res) => {
-  try {
-    const userId = req.params.id;
-
-    const user = await User.findByIdAndDelete(userId);
-
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    res.json({ success: true, message: "User deleted successfully" });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
-  }
-});
+app.use("/api", uploadRoutes);
 
 //  Fetch All Users API
 app.get("/api/users", async (req, res) => {
