@@ -66,7 +66,7 @@ router.post("/login", async (req, res) => {
       success: true,
       message: "Login successful!",
       token,
-      user: { _id: user._id, name: user.name, email: user.email },
+      user,
     });
   } catch (error) {
     console.error(error);
@@ -90,7 +90,6 @@ export const verifyToken = (req, res, next) => {
     res.status(400).json({ success: false, message: "Invalid Token" });
   }
 };
-// 🔹 CHANGE PASSWORD API
 router.put("/change-password", verifyToken, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
@@ -122,7 +121,6 @@ router.put("/change-password", verifyToken, async (req, res) => {
   }
 });
 
-// 🔹 DELETE USER API
 router.delete("/user/:id", verifyToken, async (req, res) => {
   try {
     const userId = req.params.id;
@@ -149,6 +147,39 @@ router.get("/profile", verifyToken, async (req, res) => {
     res.json({ success: true, user });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
+router.put("/profile", verifyToken, async (req, res) => {
+  try {
+    const { name, image } = req.body;
+    const userId = req.user.id;
+
+    if (!userId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User ID is required" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { name, image },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Error updating profile:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
