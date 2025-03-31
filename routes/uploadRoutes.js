@@ -14,7 +14,6 @@ router.post("/upload", async (req, res) => {
 
     const file = req.files.image;
 
-    // ✅ Upload File to Cloudinary
     const result = await cloudinary.uploader.upload(file.tempFilePath, {
       folder: "blog-images",
       use_filename: true,
@@ -25,8 +24,6 @@ router.post("/upload", async (req, res) => {
     fs.unlinkSync(file.tempFilePath);
 
     res.json({
-      success: true,
-      message: "Image uploaded successfully!",
       image: result.secure_url,
     });
   } catch (error) {

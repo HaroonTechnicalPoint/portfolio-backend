@@ -24,23 +24,40 @@ router.post("/category", async (req, res) => {
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
-
-router.get("/category", async (req, res) => {
+router.get("/category/:lastId", async (req, res) => {
   try {
-    const categories = await Category.find();
-    res.status(201).json({
+    let { page = 1, limit = 10, search = "" } = req.query;
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    // Search query
+    let query = {};
+    if (search) {
+      query = { name: { $regex: search, $options: "i" } }; // Case-insensitive search
+    }
+
+    const totalCategories = await Category.countDocuments();
+    const totalPages = Math.ceil(totalCategories / limit);
+
+    const categories = await Category.find(query)
+      .skip((page - 1) * limit) // Skip previous pages
+      .limit(limit); // Limit the number of records
+
+    res.status(200).json({
       success: true,
-      message: "Category get successfully!",
+      message: "Categories fetched successfully!",
       categories,
+      count: { totalPages, currentPage: page },
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
+
 router.put("/category/:id", async (req, res) => {
   const { id } = req.params;
-  const { name } = req.body;
+  const { name, status } = req.body;
 
   try {
     // Check if category exists
@@ -54,7 +71,7 @@ router.put("/category/:id", async (req, res) => {
     // Update category
     const updatedCategory = await Category.findByIdAndUpdate(
       id,
-      { name },
+      { name, status },
       { new: true }
     );
 

@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import User from "../model/User.js"; // Import User model
+import Category from "../model/Category.js";
+import Blog from "../model/Blog.js";
 
 dotenv.config();
 const router = express.Router();
@@ -75,7 +77,7 @@ router.post("/login", async (req, res) => {
 });
 
 export const verifyToken = (req, res, next) => {
-  const token = req.header("x-Auth");
+  const token = req.header("X-Auth-Token");
   if (!token) {
     return res
       .status(401)
@@ -150,9 +152,10 @@ router.get("/profile", verifyToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
+
 router.put("/profile", verifyToken, async (req, res) => {
   try {
-    const { name, image } = req.body;
+    const { name, image, password } = req.body;
     const userId = req.user.id;
 
     if (!userId) {
@@ -161,11 +164,19 @@ router.put("/profile", verifyToken, async (req, res) => {
         .json({ success: false, message: "User ID is required" });
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { name, image },
-      { new: true }
-    );
+    // Create update object
+    let updateFields = { name, image };
+
+    // If password is provided, hash it before updating
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateFields.password = await bcrypt.hash(password, salt);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateFields, {
+      new: true,
+      select: "-password", // Do not return the password
+    });
 
     if (!updatedUser) {
       return res
@@ -176,11 +187,41 @@ router.put("/profile", verifyToken, async (req, res) => {
     res.json({
       success: true,
       message: "Profile updated successfully",
-      user: updatedUser,
+      user: updatedUser, // Fixed this line
     });
   } catch (error) {
     console.error("Error updating profile:", error);
     res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
+router.get("/dashboard", verifyToken, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const categoryCount = await Category.countDocuments();
+    const blogCount = await Blog.countDocuments();
+    const blogs = await Blog.find().sort({ createdAt: -1 }).limit(5);
+    const categories = await Category.find().sort({ createdAt: -1 }).limit(5);
+
+    res.status(200).json({
+      success: true,
+      categoryCount,
+      blogCount,
+      blogs,
+      categories,
+    });
+  } catch (error) {
+    console.error("Dashboard Error: ", error);
+    res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+    });
   }
 });
 
